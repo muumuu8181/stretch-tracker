@@ -14,11 +14,48 @@ git checkout -b feature/pc-a-ui-improvements
 ```
 
 ### 2. 作業内容
-**index.htmlのUI改善**:
-- ページタイトルを変更
-- CSS スタイルを追加/変更  
-- ボタンデザインを改善
-- レイアウトを調整
+
+#### A. 独自ファイル作成（自動マージ成功テスト）
+```bash
+# 新規CSSファイル作成
+cat > device-a-styles.css << 'EOF'
+/* Device A専用スタイル */
+.device-a-button {
+    background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+}
+
+.device-a-header {
+    background: #3742fa;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+EOF
+```
+
+#### B. 共通ファイル編集（コンフリクトテスト）
+```bash
+# README.mdの## 概要セクションを以下に変更
+```
+**元の## 概要セクション**を以下に置き換え:
+```markdown
+## 概要
+- **作成日**: 2025-08-05
+- **目的**: Device-A UI Enhancement - 美しいユーザーインターフェース構築
+- **使用技術**: HTML, CSS3, Bootstrap, Animation
+- **Device-A改善**: モダンなボタンデザインとヘッダーレイアウト
+```
+
+```bash
+# package.jsonに以下を追加
+npm install animate.css --save
+```
 
 ### 3. コミット・プッシュ
 ```bash

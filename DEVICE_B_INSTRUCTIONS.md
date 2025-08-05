@@ -14,11 +14,65 @@ git checkout -b feature/pc-b-new-features
 ```
 
 ### 2. 作業内容
-**新機能追加**:
-- `src/` フォルダに新しいJavaScriptファイル追加
-- ユーティリティ関数を作成
-- package.json に新しい依存関係追加
-- examples/ に新しいサンプルファイル追加
+
+#### A. 独自ファイル作成（自動マージ成功テスト）
+```bash
+# 新規JavaScriptユーティリティ作成
+cat > src/device-b-utils.js << 'EOF'
+// Device B専用ユーティリティ関数
+class DeviceBUtils {
+    static formatDate(date) {
+        return new Intl.DateTimeFormat('ja-JP', {
+            year: 'numeric',
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    }
+
+    static generateId() {
+        return 'device-b-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    static validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+}
+
+export default DeviceBUtils;
+EOF
+
+# サンプルファイル作成
+cat > examples/device-b-demo.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device B Demo</title>
+</head>
+<body>
+    <h1>Device B機能デモ</h1>
+    <p>日時フォーマット、ID生成、バリデーション機能</p>
+</body>
+</html>
+EOF
+```
+
+#### B. 共通ファイル編集（コンフリクトテスト）
+**元の## 概要セクション**を以下に置き換え:
+```markdown
+## 概要
+- **作成日**: 2025-08-05
+- **目的**: Device-B Feature Enhancement - 高機能ユーティリティシステム
+- **使用技術**: JavaScript ES6+, Node.js, Lodash
+- **Device-B改善**: 日付処理、ID生成、バリデーション機能
+```
+
+```bash
+# package.jsonに以下を追加
+npm install lodash moment --save
+```
 
 ### 3. コミット・プッシュ
 ```bash
