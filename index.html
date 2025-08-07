@@ -6,9 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ストレッチ管理</title>
     
-    <!-- カスタムスタイル -->
-    <link rel="stylesheet" href="custom/styles.css">
-    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
@@ -16,9 +13,6 @@
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- カスタム設定 -->
-    <script type="module" src="custom/app-config.js"></script>
     <style>
         body { font-family: Arial, sans-serif; padding: 2px; background: #f5f5f5; line-height: 1.2; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 6px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -186,6 +180,10 @@
         let currentStretch;
         let stretchChart = null;
         let allStretchData = [];
+        let selectedTimingValue = '';
+        let weightChart = null;
+        let allWeightData = [];
+        window.editingEntryId = null;
         
         // 30種類のストレッチメニュー
         const stretchMenu = [
@@ -508,7 +506,7 @@
                     date: date,
                     time: timeString,
                     value: parseFloat(weight),
-                    timing: selectedTimingValue || '','
+                    timing: selectedTimingValue || '',
                     memo: memo || '',
                     userEmail: currentUser.email,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
