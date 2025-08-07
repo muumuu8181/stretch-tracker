@@ -82,9 +82,9 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="app-header" style="position: relative;">
-            <span style="position: absolute; top: 10px; right: 10px; background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">v0.1</span>
+    <div class="container" style="position: relative;">
+        <span style="position: absolute; top: 10px; right: 10px; background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 1000;">v0.1</span>
+        <div class="app-header">
             <h1 class="app-title">🧘 ストレッチ管理</h1>
             <p class="app-subtitle">毎日のストレッチを記録・管理</p>
         </div>
@@ -336,6 +336,9 @@
                 
             } catch (error) {
                 log(`❌ ログインエラー: ${error.message}`);
+                
+                // モバイルデバイス検出（エラー処理用）
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                 
                 // エラーの詳細情報をログに出力
                 if (error.code) {
@@ -805,20 +808,8 @@
             document.getElementById('chartPanel').classList.add('hidden');
             document.getElementById('userName').textContent = user.displayName;
             
-            // 今日の日付と体重デフォルト値を設定（タイムゾーン考慮）
+            // 今日の日付設定（不要な要素参照を削除）
             const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            const todayString = `${year}-${month}-${day}`;
-            document.getElementById('dateInput').value = todayString;
-            document.getElementById('weightValue').value = '0.0';
-            
-            // タイミングボタンの初期状態設定
-            document.querySelectorAll('.timing-btn').forEach(btn => {
-                btn.style.opacity = '0.7';
-                btn.classList.remove('selected');
-            });
             
         }
 
