@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アプリテンプレート v0.1</title>
+    <title>ストレッチ管理</title>
     
     <!-- カスタムスタイル -->
     <link rel="stylesheet" href="custom/styles.css">
@@ -90,8 +90,8 @@
 <body>
     <div class="container">
         <div class="app-header">
-            <h1 class="app-title">📊 アプリテンプレート v0.1</h1>
-            <p class="app-subtitle">Core/Customフォルダ分離版 - Firebase + Google認証</p>
+            <h1 class="app-title">🧘 ストレッチ管理</h1>
+            <p class="app-subtitle">毎日のストレッチを記録・管理</p>
         </div>
         <!-- 認証セクション -->
         <div class="auth-section" id="authSection">
@@ -105,37 +105,25 @@
             <button class="logout-button" onclick="handleLogout()">ログアウト</button>
         </div>
 
-        <!-- データ入力セクション -->
-        <div class="weight-input hidden" id="weightInput">
+        <!-- ストレッチセクション -->
+        <div class="stretch-section hidden" id="stretchSection">
             <div class="input-card">
-                <h3 style="margin-top: 0; margin-bottom: 8px;">📝 データを記録</h3>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="date" class="input-field" id="dateInput" style="flex: 1; min-width: 140px;">
-                    <input type="number" class="input-field" id="weightValue" placeholder="値" step="0.1" min="0" max="300" value="72.0" style="flex: 1; min-width: 100px;" onkeydown="handleWeightKeypress(event)">
-                    <span style="font-size: 11px; color: #666; white-space: nowrap;">↑↓で調整</span>
+                <h3 style="margin-top: 0; margin-bottom: 8px;">🏃 ストレッチメニュー</h3>
+                <div class="stretch-buttons" id="stretchButtons" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 10px 0;">
+                    <!-- ストレッチボタンはJavaScriptで追加 -->
                 </div>
                 
-                <!-- タイミング選択パネル -->
-                <div class="timing-panel">
-                    <div class="timing-buttons">
-                        <button type="button" class="timing-btn" onclick="selectTiming('起床後')" data-timing="起床後" style="background: #55a3ff;">🛏️ 起床後</button>
-                        <button type="button" class="timing-btn" onclick="selectTiming('トイレ前')" data-timing="トイレ前" style="background: #81ecec;">🚽 トイレ前</button>
-                        <button type="button" class="timing-btn" onclick="selectTiming('トイレ後')" data-timing="トイレ後" style="background: #74b9ff;">🚽 トイレ後</button>
-                        <button type="button" class="timing-btn" onclick="selectTiming('風呂前')" data-timing="風呂前" style="background: #fd79a8;">🛁 風呂前</button>
-                        <button type="button" class="timing-btn" onclick="selectTiming('風呂後')" data-timing="風呂後" style="background: #00b894;">🛀 風呂後</button>
-                        <button type="button" class="timing-btn" onclick="selectTiming('食事前')" data-timing="食事前" style="background: #e84393;">🍽️ 食事前</button>
-                        <button type="button" class="timing-btn" onclick="selectTiming('食事後')" data-timing="食事後" style="background: #a29bfe;">🍽️ 食事後</button>
-                    </div>
-                    <input type="text" class="input-field" id="selectedTiming" placeholder="タイミング" readonly style="margin-top: 5px; font-size: 12px; padding: 6px; text-align: center; background: #f0f8ff;">
+                <!-- タイマー表示エリア -->
+                <div id="timer-display" style="display:none; text-align: center; padding: 20px; background: #f0f8ff; border-radius: 8px; margin-top: 10px;">
+                    <h2 id="current-stretch" style="margin: 0 0 10px 0; color: #333;"></h2>
+                    <div id="timer" style="font-size: 48px; font-weight: bold; color: #007bff; font-family: monospace;">00:00</div>
+                    <button onclick="stopStretch()" style="background: #dc3545; color: white; border: none; padding: 10px 24px; border-radius: 5px; cursor: pointer; margin-top: 10px; font-size: 16px;">⏹️ 停止</button>
                 </div>
-                
-                <textarea class="input-field" id="memoInput" placeholder="メモ (オプション)" rows="2"></textarea>
-                <button class="save-button" onclick="saveWeightData()">💾 保存</button>
             </div>
             
             <div class="input-card">
-                <h3>📈 データ履歴</h3>
-                <div class="data-area" id="weightHistory">
+                <h3>📊 今日の記録</h3>
+                <div class="data-area" id="stretchHistory">
                     データを読み込み中...<br>
                 </div>
             </div>
@@ -195,46 +183,99 @@
         const database = firebase.database();
 
         let currentUser = null;
-        let selectedTimingValue = '';
-        let weightChart = null;
-        let allWeightData = [];
-        window.editingEntryId = null;
+        let startTime;
+        let timerInterval;
+        let currentStretch;
+        let stretchChart = null;
+        let allStretchData = [];
+        
+        // 30種類のストレッチメニュー
+        const stretchMenu = [
+            '首回し', '肩回し', '前屈', '後屈', '側屈',
+            '腕回し', '手首回し', '足首回し', '膝回し', '腰回し',
+            'アキレス腱伸ばし', '太もも前側', '太もも裏側', 'ふくらはぎ', '股関節',
+            '背中伸ばし', '胸開き', '肩甲骨はがし', '首筋伸ばし', '腕伸ばし',
+            'ランジ', 'スクワット', '開脚', '腹筋', '背筋',
+            'プランク', 'ブリッジ', '猫のポーズ', '子供のポーズ', '深呼吸'
+        ];
 
-        // キーボードでの値調整機能
-        window.handleWeightKeypress = (event) => {
-            const weightInput = document.getElementById('weightValue');
-            const currentValue = parseFloat(weightInput.value) || 72.0;
+        // ストレッチボタンを動的に生成
+        function initializeStretchButtons() {
+            const buttonsContainer = document.getElementById('stretchButtons');
+            if (!buttonsContainer) return;
             
-            if (event.key === 'ArrowUp') {
-                event.preventDefault();
-                weightInput.value = (currentValue + 0.1).toFixed(1);
-            } else if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                weightInput.value = Math.max(0, currentValue - 0.1).toFixed(1);
-            }
+            buttonsContainer.innerHTML = stretchMenu.map(name => {
+                const colors = [
+                    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+                    '#74B9FF', '#A29BFE', '#6C5CE7', '#FD79A8', '#FDCB6E',
+                    '#00B894', '#00CEC9', '#0984E3', '#6C5CE7', '#E17055'
+                ];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                return `<button onclick="startStretch('${name}')" style="background: ${color}; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-size: 14px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">${name}</button>`;
+            }).join('');
+        }
+
+        // ストレッチ開始
+        window.startStretch = (name) => {
+            currentStretch = name;
+            startTime = Date.now();
+            document.getElementById('current-stretch').textContent = name;
+            document.getElementById('timer-display').style.display = 'block';
+
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('timer').textContent =
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 100);
+            
+            log(`🏃 ストレッチ開始: ${name}`);
         };
 
-        // タイミング選択機能（改良版）
-        window.selectTiming = (timing) => {
-            selectedTimingValue = timing;
-            document.getElementById('selectedTiming').value = timing;
+        // ストレッチ停止
+        window.stopStretch = async () => {
+            clearInterval(timerInterval);
+            const duration = Math.floor((Date.now() - startTime) / 1000);
             
-            // すべてのボタンから選択状態を削除
-            document.querySelectorAll('.timing-btn').forEach(btn => {
-                btn.classList.remove('selected');
-                btn.style.opacity = '0.7';
-            });
-            
-            // 選択されたボタンに選択状態を追加
-            const selectedBtn = document.querySelector(`[data-timing="${timing}"]`);
-            if (selectedBtn) {
-                selectedBtn.classList.add('selected');
-                selectedBtn.style.opacity = '1';
+            if (!currentUser) {
+                log('❌ ログインが必要です');
+                document.getElementById('timer-display').style.display = 'none';
+                return;
             }
             
-            log(`⏰ 測定タイミング選択: ${timing}`);
+            await saveStretchRecord(currentStretch, duration);
+            document.getElementById('timer-display').style.display = 'none';
+            log(`⏹️ ストレッチ終了: ${currentStretch} (${duration}秒)`);
         };
 
+
+        // ストレッチ記録を保存
+        async function saveStretchRecord(name, duration) {
+            try {
+                const now = new Date();
+                const stretchData = {
+                    name: name,
+                    duration: duration,
+                    date: now.toISOString().split('T')[0],
+                    time: now.toLocaleTimeString('ja-JP', { 
+                        hour12: false, 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    }),
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+                
+                const userRef = database.ref(`users/${currentUser.uid}/stretches`);
+                await userRef.push(stretchData);
+                log(`✅ 記録保存: ${name} - ${duration}秒`);
+                
+                // データを再読み込み
+                loadUserStretchData(currentUser.uid);
+            } catch (error) {
+                log(`❌ 保存エラー: ${error.message}`);
+            }
+        }
 
         // 認証状態の監視（改良版）
         auth.onAuthStateChanged((user) => {
@@ -243,7 +284,8 @@
                 log(`✅ 認証状態確認: ${user.displayName} でログイン中`);
                 log(`📧 メール: ${user.email}`);
                 showUserInterface(user);
-                loadUserWeightData(user.uid);
+                loadUserStretchData(user.uid);
+                initializeStretchButtons();
             } else {
                 log('🔒 認証状態: 未ログイン');
                 showLoginInterface();
@@ -391,7 +433,54 @@
             }
         };
 
-        // データ保存
+        // ユーザーのストレッチデータを読み込み
+        function loadUserStretchData(userId) {
+            const userRef = database.ref(`users/${userId}/stretches`);
+            const today = new Date().toISOString().split('T')[0];
+            
+            userRef.orderByChild('date').equalTo(today).on('value', (snapshot) => {
+                const data = snapshot.val();
+                const historyDiv = document.getElementById('stretchHistory');
+                
+                if (data) {
+                    const entries = Object.entries(data)
+                        .map(([key, value]) => ({ id: key, ...value }))
+                        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    
+                    let totalDuration = 0;
+                    const stretchCounts = {};
+                    
+                    entries.forEach(entry => {
+                        totalDuration += entry.duration;
+                        stretchCounts[entry.name] = (stretchCounts[entry.name] || 0) + 1;
+                    });
+                    
+                    const totalMinutes = Math.floor(totalDuration / 60);
+                    const totalSeconds = totalDuration % 60;
+                    
+                    historyDiv.innerHTML = `
+                        <div style="background: #e8f5e9; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                            <strong>今日の合計: ${totalMinutes}分${totalSeconds}秒</strong><br>
+                            <small>実施種目: ${Object.keys(stretchCounts).length}種類</small>
+                        </div>
+                        ${entries.map(entry => {
+                            const minutes = Math.floor(entry.duration / 60);
+                            const seconds = entry.duration % 60;
+                            return `<div style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                                ${entry.time} - ${entry.name}: ${minutes}分${seconds}秒
+                            </div>`;
+                        }).join('')}
+                    `;
+                    
+                    log(`📊 今日の記録読み込み完了: ${entries.length}件`);
+                } else {
+                    historyDiv.innerHTML = '今日のストレッチ記録はまだありません';
+                    log('📊 今日の記録: データなし');
+                }
+            });
+        }
+
+        // データ保存（使わないが残しておく）
         window.saveWeightData = async () => {
             if (!currentUser) {
                 log('❌ ログインが必要です');
@@ -715,8 +804,8 @@
         function showUserInterface(user) {
             document.getElementById('authSection').classList.add('hidden');
             document.getElementById('userInfo').classList.remove('hidden');
-            document.getElementById('weightInput').classList.remove('hidden');
-            document.getElementById('chartPanel').classList.remove('hidden');
+            document.getElementById('stretchSection').classList.remove('hidden');
+            document.getElementById('chartPanel').classList.add('hidden');
             document.getElementById('userName').textContent = user.displayName;
             
             // 今日の日付と体重デフォルト値を設定（タイムゾーン考慮）
@@ -739,7 +828,7 @@
         function showLoginInterface() {
             document.getElementById('authSection').classList.remove('hidden');
             document.getElementById('userInfo').classList.add('hidden');
-            document.getElementById('weightInput').classList.add('hidden');
+            document.getElementById('stretchSection').classList.add('hidden');
             document.getElementById('chartPanel').classList.add('hidden');
         }
 
@@ -1066,7 +1155,7 @@ ${document.getElementById('logArea').innerText}`;
         };
 
         // 初期化
-        log('🚀 体重管理アプリ起動完了');
+        log('🚀 ストレッチ管理アプリ起動完了');
         log('🔐 認証システム準備完了');
         
         // プロトコルチェック（自動診断）
