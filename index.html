@@ -83,7 +83,7 @@
 </head>
 <body>
     <div class="container" style="position: relative;">
-        <span style="position: absolute; top: 10px; right: 10px; background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 1000;">v0.1</span>
+        <span style="position: absolute; top: 10px; right: 10px; background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 1000;">v0.2</span>
         <div class="app-header">
             <h1 class="app-title">🧘 ストレッチ管理</h1>
             <p class="app-subtitle">毎日のストレッチを記録・管理</p>
@@ -159,6 +159,28 @@
     </div>
 
     <script>
+        // エラーハンドリング用の安全なログ関数（構文エラーがあっても動作）
+        window.safeLog = function(message) {
+            try {
+                const logArea = document.getElementById('logArea');
+                if (logArea) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    logArea.innerHTML += `[${timestamp}] ${message}<br>`;
+                    logArea.scrollTop = logArea.scrollHeight;
+                }
+                console.log(message);
+            } catch (e) {
+                console.error('ログ出力エラー:', e);
+            }
+        };
+
+        // グローバルエラーハンドラー（構文エラーも捕捉）
+        window.addEventListener('error', function(event) {
+            const errorMsg = `❌ エラー検出: ${event.message} (行: ${event.lineno})`;
+            window.safeLog(errorMsg);
+            return false;
+        });
+
         // Core Firebase設定（変更禁止 - core/src/firebase-config.js参照）
         const firebaseConfig = {
             apiKey: "AIzaSyA5PXKChizYDCXF_GJ4KL6Ylq9K5hCPXWE",
@@ -1139,9 +1161,21 @@ ${document.getElementById('logArea').innerText}`;
             });
         };
 
-        // 初期化
-        log('🚀 ストレッチ管理アプリ起動完了');
-        log('🔐 認証システム準備完了');
+        // 初期化（エラーに強い初期化処理）
+        try {
+            log('🚀 ストレッチ管理アプリ起動完了');
+            log('🔐 認証システム準備完了');
+            
+            // 重要な関数の存在チェック
+            if (typeof handleGoogleLogin === 'undefined') {
+                window.safeLog('⚠️ 警告: ログイン関数が定義されていません');
+            }
+            if (typeof startStretch === 'undefined') {
+                window.safeLog('⚠️ 警告: ストレッチ開始関数が定義されていません');
+            }
+        } catch (initError) {
+            window.safeLog(`❌ 初期化エラー: ${initError.message}`);
+        }
         
         // プロトコルチェック（自動診断）
         if (window.location.protocol === 'file:') {
