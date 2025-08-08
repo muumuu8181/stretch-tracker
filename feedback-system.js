@@ -279,22 +279,113 @@ if (typeof firebase !== 'undefined') {
         });
         
         console.log('📊 フィードバックシステム起動');
+        
+        // LocalStorageに保存されたデータを自動アップロード
+        const localDataCount = Object.keys(localStorage).filter(k => k.startsWith('feedback_')).length;
+        if (localDataCount > 0) {
+            console.log(`📦 LocalStorageに${localDataCount}件の未送信データを検出`);
+            setTimeout(async () => {
+                console.log('📤 自動アップロード開始...');
+                for (const key of Object.keys(localStorage).filter(k => k.startsWith('feedback_'))) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        const category = key.includes('error') ? 'errors' : 'modifications';
+                        await window.feedbackSystem.sendToFirebase(category, data);
+                        localStorage.removeItem(key);
+                    } catch (e) {
+                        console.error(`アップロード失敗: ${key}`, e);
+                    }
+                }
+                console.log('✅ 自動アップロード完了');
+            }, 2000);  // 2秒後に実行
+        }
     } else {
         console.log('📊 フィードバックシステム: file://プロトコルでは無効');
         
-        // LocalStorageのみの簡易版
+        // LocalStorageのみの簡易版（後でアップロード可能）
         window.feedbackSystem = {
+            sessionId: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            startTime: Date.now(),
+            
             trackError: (data) => {
                 const key = `feedback_error_${Date.now()}`;
-                localStorage.setItem(key, JSON.stringify(data));
-                console.log('💾 エラーをLocalStorageに保存:', data);
+                const errorData = {
+                    ...data,
+                    sessionId: window.feedbackSystem.sessionId,
+                    timestamp: Date.now(),
+                    protocol: 'file://'
+                };
+                localStorage.setItem(key, JSON.stringify(errorData));
+                console.log('💾 エラーをLocalStorageに保存:', errorData);
+                
+                // 保存データ数を表示
+                window.feedbackSystem.showLocalDataCount();
             },
+            
             logModification: (type, data) => {
                 const key = `feedback_mod_${Date.now()}`;
-                localStorage.setItem(key, JSON.stringify({type, ...data}));
+                const modData = {
+                    type, 
+                    ...data,
+                    sessionId: window.feedbackSystem.sessionId,
+                    timestamp: Date.now(),
+                    protocol: 'file://'
+                };
+                localStorage.setItem(key, JSON.stringify(modData));
                 console.log('💾 変更をLocalStorageに保存:', type, data);
+                
+                // 保存データ数を表示
+                window.feedbackSystem.showLocalDataCount();
+            },
+            
+            // LocalStorageのデータ数を表示
+            showLocalDataCount: () => {
+                const count = Object.keys(localStorage).filter(k => k.startsWith('feedback_')).length;
+                if (count > 0) {
+                    console.log(`📦 LocalStorageに${count}件のフィードバックが保存されています`);
+                    console.log('💡 HTTPサーバー経由でアクセスすると自動送信されます');
+                }
+            },
+            
+            // 手動でデータをアップロード（HTTPサーバー経由でアクセス時に実行）
+            uploadLocalData: async () => {
+                if (window.location.protocol === 'file:') {
+                    console.log('❌ file://プロトコルではアップロードできません');
+                    return;
+                }
+                
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('feedback_'));
+                if (keys.length === 0) {
+                    console.log('📭 アップロードするデータがありません');
+                    return;
+                }
+                
+                console.log(`📤 ${keys.length}件のローカルデータをアップロード開始...`);
+                
+                for (const key of keys) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        const category = key.includes('error') ? 'errors' : 'modifications';
+                        
+                        // Firebaseに送信
+                        const ref = firebase.database()
+                            .ref(`public_feedback/v0.2/${category}`)
+                            .push();
+                        
+                        await ref.set(data);
+                        localStorage.removeItem(key);
+                        console.log(`✅ アップロード完了: ${key}`);
+                    } catch (e) {
+                        console.error(`❌ アップロード失敗: ${key}`, e);
+                    }
+                }
+                
+                console.log('📤 すべてのローカルデータのアップロードが完了しました');
             }
         };
+        
+        // 起動時にLocalStorageの状態を確認
+        window.feedbackSystem.showLocalDataCount();
     }
 }
 
