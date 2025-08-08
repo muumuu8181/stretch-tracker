@@ -139,23 +139,61 @@ class TemplateFeedbackSystem {
     
     // ========== データ送信 ==========
     
-    // Firebaseへの送信
+    // Firebaseへの送信（ログイン不要版）
     async sendToFirebase(category, data) {
         try {
+            // 匿名認証を使用（ログイン不要）
+            if (!firebase.auth().currentUser) {
+                await firebase.auth().signInAnonymously();
+                console.log('📊 匿名ユーザーとしてフィードバック送信');
+            }
+            
+            // パブリック領域に書き込み（認証不要）
             const ref = firebase.database()
-                .ref(`${this.firebaseRef}/${this.version}/${category}`)
+                .ref(`public_feedback/${this.version}/${category}`)
                 .push();
             
             await ref.set({
                 ...data,
                 sessionId: this.sessionId,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                isAnonymous: !firebase.auth().currentUser?.email
             });
+            
+            console.log(`✅ フィードバック送信: ${category}`);
         } catch (error) {
             console.error('Firebase送信エラー:', error);
             // フォールバック: LocalStorageに保存
             this.saveToLocalStorage(category, data);
+            
+            // ログイン後に再送信を試みる
+            this.scheduleRetry(category, data);
         }
+    }
+    
+    // ログイン後の再送信
+    scheduleRetry(category, data) {
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user && this.hasLocalData()) {
+                this.sendLocalDataToFirebase();
+            }
+        });
+    }
+    
+    // LocalStorageのデータをFirebaseに送信
+    sendLocalDataToFirebase() {
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('feedback_'));
+        keys.forEach(key => {
+            const data = JSON.parse(localStorage.getItem(key));
+            const category = key.split('_')[1];
+            this.sendToFirebase(category, data);
+            localStorage.removeItem(key);
+        });
+        console.log(`📤 保留中のフィードバック${keys.length}件を送信`);
+    }
+    
+    hasLocalData() {
+        return Object.keys(localStorage).some(k => k.startsWith('feedback_'));
     }
     
     // ページ離脱時の確実な送信
@@ -232,12 +270,32 @@ class TemplateFeedbackSystem {
 // ========== 自動初期化 ==========
 // テンプレートに組み込むだけで動作開始
 if (typeof firebase !== 'undefined') {
-    window.feedbackSystem = new TemplateFeedbackSystem({
-        version: 'v0.2',
-        enableAdvanced: false  // まずは基本機能のみ
-    });
-    
-    console.log('📊 フィードバックシステム起動');
+    // file://プロトコルでは動作しないため、HTTPサーバー経由のみ有効化
+    if (window.location.protocol !== 'file:') {
+        window.feedbackSystem = new TemplateFeedbackSystem({
+            version: 'v0.2',
+            firebaseRef: 'public_feedback',  // パブリック領域を使用
+            enableAdvanced: false  // まずは基本機能のみ
+        });
+        
+        console.log('📊 フィードバックシステム起動');
+    } else {
+        console.log('📊 フィードバックシステム: file://プロトコルでは無効');
+        
+        // LocalStorageのみの簡易版
+        window.feedbackSystem = {
+            trackError: (data) => {
+                const key = `feedback_error_${Date.now()}`;
+                localStorage.setItem(key, JSON.stringify(data));
+                console.log('💾 エラーをLocalStorageに保存:', data);
+            },
+            logModification: (type, data) => {
+                const key = `feedback_mod_${Date.now()}`;
+                localStorage.setItem(key, JSON.stringify({type, ...data}));
+                console.log('💾 変更をLocalStorageに保存:', type, data);
+            }
+        };
+    }
 }
 
 // ========== AI分析用のデータ構造 ==========
